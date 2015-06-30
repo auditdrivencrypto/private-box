@@ -124,7 +124,6 @@ function multibox (msg, nonce, recipients, sender_sk) {
     secretbox_easy(msg, nonce, key)
   ])
 }
-
 ```
 
 So, to use this model, you would normally make the first recipient
@@ -135,6 +134,82 @@ To decrypt, you would take `scalarmult(your_sk, sender_pk)`
 and then use that to unbox recipients until you get a valid
 mac. This could be pretty fast, because there would be only one
 curve op, and then the rest is symmetric crypto.
+
+
+## a more private multibox
+
+The properties might get a bit cleaner
+
+``` js
+
+function multibox2 (msg, nonce, recipients) {
+
+  var key = random(32)
+  //MAX 16 recipients
+  var _key = concat([new Buffer([(recipients.length-1) && 15]), key)
+  var onetime = box_keypair()
+
+  return concat([
+    nonce, //24 bytes
+    onetime.publicKey, //32 bytes
+            //recipients.length * 16+33
+    recipients.map(function (r_pk) {
+      return box(_key, nonce, r_pk, onetime.secretKey)
+    }),
+    //msg.length + 16
+    secretbox_easy(msg, nonce, key)
+  ])
+}
+```
+
+An interesting property of this is that the recipient
+identities are forward secure (though, since I am assuming
+that the sender encrypts this message back to themself,
+whoever has their private key can read the message, and
+those id's are likely written in the message)
+
+Note, here that the recipient length field is encrypted to each
+recipient! If the number of recipients is not hidden,
+and I send a group message to a weird number, then someone
+hits "reply-all" it would suggest it was a reply.
+By hiding the number of "to" addresses, the messages will be _very private_.
+
+They will be more expensive to calculate, but since an `secretbox_open`
+attempt is actually very cheap (about 50 make 1 `scalarmult` op)
+so if you have 1 asym operation, then doing less than say, 50
+unboxes won't matter much.
+[see sodiumperf tests](https://github.com/dominictarr/sodiumperf)
+
+So this wouldn't be very much slower than any of the above
+algorithms, but it would be more private, even though it supports
+multiple recipients. Also, since the encrypted message has a one-off
+key, you could reveal the key to one message... if you needed
+to prove someone was harassing you, for example. Or, if you wanted
+to implement moderated groups, you could post a message to the moderator
+who would then reveal the key for that message to the group.
+
+Decrypt might look like this:
+
+``` js
+function multibox2_open (ctxt, sk) {
+  var nonce = ctxt.slice(0, 24)
+  var onetime_pk = ctxt.slice(24, 24+32)
+  var my_key = scalarmult(sk, onetime_pk)
+  //try a bunch of keys
+  var _key, start = 24+32, keysize = 16+1+32
+  for(var i = 0; i < 8 || !key; i++) {
+    var s = start+(keysize*i), e = s + keysize
+    _key = secretbox_easy_open(ctxt.slice(s, e), nonce, my_key)
+  }
+  if(!key) return //message not addressed to us
+
+  var length = key[0]
+  var rest = ctxt.slice(start + keysize*length, ctxt.length)
+
+  return secretbox_easy_open(rest, nonce, key.slice(1, 33))
+}
+
+```
 
 
 ## License
