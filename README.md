@@ -101,6 +101,42 @@ could not be opened by the sender (once they have deleted
 
 This doesn't seem very useful for a database.
 
+## multiple recipients
+
+maybe, a way to generalize this would be to have multiple
+recipients?
+
+``` js
+
+function multibox (msg, nonce, recipients, sender_sk) {
+
+  var key = random(32)
+
+  return concat([
+    nonce, //24 bytes
+           //1 byte
+    new Buffer([recipients.length & 255]), //MAX 1 byte!
+            //recipients.length * 16+32
+    recipients.map(function (r_pk) {
+      return box(key, nonce, r_pk, sender_sk)
+    }),
+    //msg.length + 16
+    secretbox_easy(msg, nonce, key)
+  ])
+}
+
+```
+
+So, to use this model, you would normally make the first recipient
+your self. This would support messages to N recipients,
+and also support one way messages, or messages to yourself.
+
+To decrypt, you would take `scalarmult(your_sk, sender_pk)`
+and then use that to unbox recipients until you get a valid
+mac. This could be pretty fast, because there would be only one
+curve op, and then the rest is symmetric crypto.
+
+
 ## License
 
 MIT
