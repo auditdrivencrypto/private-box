@@ -8,7 +8,7 @@
     "url": "git://github.com/auditdrivencrypto/private-box.git"
   },
   "dependencies": {
-    "sodium": "git://github.com/dominictarr/node-sodium.git#secretbox_easy"
+    "sodium": "git://github.com/dominictarr/node-sodium.git#0fade334a8c67b6267a5e66f944199b74927713a"
   },
   "devDependencies": {
     "tape": "~4.0.0"
