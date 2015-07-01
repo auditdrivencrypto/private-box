@@ -2,10 +2,10 @@
   "name": "private-box",
   "description": "",
   "version": "0.0.0",
-  "homepage": "https://github.com/dominictarr/private-box",
+  "homepage": "https://github.com/auditdrivencrypto/private-box",
   "repository": {
     "type": "git",
-    "url": "git://github.com/dominictarr/private-box.git"
+    "url": "git://github.com/auditdrivencrypto/private-box.git"
   },
   "dependencies": {
     "sodium": "git://github.com/dominictarr/node-sodium.git#secretbox_easy"
