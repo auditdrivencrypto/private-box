@@ -48,7 +48,6 @@ exports.multibox_open = function (ctxt, sk) { //, groups...
   var _key, key, length, start = 24+32, size = 32+1+16
   for(var i = 0; i <= MAX; i++) {
     var s = start+size*i
-    console.log(i, s, s+size, ctxt.length)
     if(s + size > (ctxt.length - 16)) continue
     _key = secretbox_open(ctxt.slice(s, s + size), nonce, my_key)
     if(_key) {
