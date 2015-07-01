@@ -211,6 +211,51 @@ function multibox2_open (ctxt, sk) {
 
 ```
 
+## Groups
+
+Often we want to communicate not just with individuals, but with groups.
+Although if more actors know the secret, then it's less secure.
+
+I can see two ways this could work,
+
+### One Way Groups
+
+an author delegates a read cap (key) to selected peers,
+and then posts messages that holders of that key can read.
+The dynamic here is similar to facebook - if I add you
+as my friend then you can read my posts.
+
+When a peer is decrypting messages, they will try the keys
+on each message received from that author. In most cases,
+a given actor will create a handful of groups (friends, family, work,
+hobby group, etc) and any other peer is probably only a member
+of one or two of those.
+
+The cost of this would be `groups_added*max_groups`,
+the max number of groups a message should be broadcast to
+should probably be very small, like 2 or 3, then if
+A adds B to 3 groups, B will only need to attempt 9 unboxings
+to read a message.
+
+### Shared Groups
+
+In othercases, there are groups of people who do not personally
+know each other form around a common interest. Facebook groups
+work like this.
+
+In this situation, it could be quite complicated to know what
+groups a given actor is in. For example, A creates group G,
+then adds B, who adds C. C then posts a message to group G.
+suppose that A sees C's message before she hears from A that
+C is now a member of G. Either A dosen't know to try G_key on
+C's message, or A just tries every group key on every message A sees.
+
+As long as A is not a member of more than a few groups, this is not
+too much of a problem. But, if there are two types of groups,
+then G that could be many groups to check. Probably the simplest
+way to mitigate this is _prevent cross posting_, allow only one
+shared group per message, then only check for group keys
+on the first slot!
 
 ## License
 
