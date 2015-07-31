@@ -1,5 +1,5 @@
 
-var sodium = require('sodium/build/Release/sodium')
+var sodium = require('chloride/build/Release/sodium')
 
 var scalarmult = sodium.crypto_scalarmult
 var box  = sodium.crypto_box_easy
