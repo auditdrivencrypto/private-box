@@ -1,7 +1,7 @@
 {
   "name": "private-box",
   "description": "encrypt a message to a secret number of recipients",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "homepage": "https://github.com/auditdrivencrypto/private-box",
   "repository": {
     "type": "git",
