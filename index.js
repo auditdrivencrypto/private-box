@@ -1,6 +1,6 @@
 
-var sodium = require('chloride/build/Release/sodium')
-
+var sodium = require('chloride')
+var crypto = require('crypto')
 var scalarmult = sodium.crypto_scalarmult
 var box  = sodium.crypto_box_easy
 var secretbox = sodium.crypto_secretbox_easy
@@ -9,9 +9,7 @@ var keypair = sodium.crypto_box_keypair
 var concat = Buffer.concat
 
 function randombytes(n) {
-  var b = new Buffer(n)
-  sodium.randombytes(b)
-  return b
+  return crypto.randomBytes(n)
 }
 
 const MAX = 7
