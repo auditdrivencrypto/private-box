@@ -8,7 +8,7 @@
     "url": "git://github.com/auditdrivencrypto/private-box.git"
   },
   "dependencies": {
-    "chloride": "^1.0.20-1"
+    "chloride": "^2.0.1"
   },
   "devDependencies": {
     "tape": "~4.0.0"
