@@ -1,262 +1,167 @@
 # private-box
 
-an unaddressed box, with a private note-to-self so the sender can remember who it was for.
+format for encrypting a private message between from 1 to many parties.
+`private-box` is designed according to the [auditdrivencrypto design process](https://github.com/crypto-browserify/crypto-browserify/issues/128)
 
-``` js
+## API
 
-private_box(msg, nonce, recipient_pk, sender_sk, sender_key) => ciphertext
+### encrypt (plaintext Buffer, recipients Array<curve25519_pk>)
 
-//then, the receiver can open it if they know the sender.
+Take a `plaintext` Buffer of the message you want to encrypt,
+and an array of recipient public keys.
+Returns a message that is encrypted to all recipients
+and openable by them with `PrivateBox.decrypt`.
+The `recipients` must be between 1 and 7 items long.
 
-private_unbox(msg, nonce, sender_pk, recipient_sk) => plaintext
+The encrypted length will be between `56 + (recipients.length * 33) + plaintext.length` bytes long.
+(minimum 89 and maximum 287 bytes longer than the plaintext)
 
-//OR, the sender can decrypt.
+### decrypt (cyphertext Buffer, secretKey curve25519_sk)
 
-private_unbox2(msg, nonce, sender_sk, sender_key) => plaintext
+Attempt to decrypt a private-box message, using your secret key.
+If you where an intended recipient then the plaintext will be returned.
+If it was not for you, then `undefined` will be returned.
+
+## protocol
+
+### encryption
+
+`private-box` generates an ephemeral curve25519 keypair that will only be used with this message (`ephemeral_keys`),
+and a random `key` that will be used to encrypt the plaintext body (`body_key`).
+first, private-box outputs the ephemeral public key, then takes each recipient public key and 
+multiplies it with the ephemeral private key to produce ephemeral shared keys (`shared_keys[1..n]`).
+Then private-box concatenates `body_key` with the number of recipients,
+and then encrypts that to each shared key, then concatenates the encrypted body.
 
 ```
-
-In secure scuttlebutt, a potential receiver knows who posted
-a message, because it has a pk/signature. The envelope is marked
-with a _from_ field, but there is no _to_ field.
-
-However, sometimes the sender needs to look at a message
-they sent. If there is no _to_ field, the sender must encrypt
-a short message _to themselves_.
-
-## generate one time key.
-
-generate a onetime keypair, box a message to the receipient
-with it, and also box a message back to your self, including
-the onetime secret, so that you can reopen the message if necessary.
-
-```js
-//two scalarmult + key_pair
-//152 byte overhead
-function private_box (msg, nonce, recipient_pk, sender_sk) {
-  var onetime = box_keypair()
-  return concat([
-    nonce,                   //24 bytes
-    onetime.publicKey,       //32 bytes
-    box_easy(                //32+32+16 = 80 bytes
-      concat([recipient_pk, onetime.secretKey]),
-      onetime.publicKey,
-      sender_sk
-    ),
-                             //msg.length + 16 bytes
-    box_easy(msg, nonce, recipient_pk, onetime.secretKey)
-  ]
-}
-```
-this design generates a new key pair on ever write,
-and then uses two scalarmult operations.
-there are 152 bytes of overhead.
-
-One interesting benefit is that you could have a oneway
-write, where the author forgets the onetime secret key,
-so the box can only be opened by it's recipient.
-
-## keep a symmetric key for the note-to-self
-
-We have to keep track of another secret key
-(it could be derived from the private key, though)
-
-``` js
-
-function private_box (msg, nonce, recipient_pk, sender_sk, sender_key) {
-  return concat([
-    nonce,                                           //24 bytes
-    secretbox_easy(recipient_pk, nonce, sender_key), //32+16=40 bytes
-    box_easy(msg, nonce, recipient_pk, sender_sk)    //msg.length + 16
-  ])
-}
-```
-
-Only 80 bytes overhead (just over half as much) and only one
-scalarmult. This will be a more performant encrypt operation,
-but decrypt will be only slightly better.
-
-This construction could be used to store encrypted messages
-for yourself, by "sending them" to a onetime key.
-
-Also, it would mean that `sender_key` is 
-
-## one way box
-
-you could have a box that only the recipient can open.
-
-``` js
-function oneway_box (msg, nonce, recipient_pk) {
-  var onetime = keypair()
+function encrypt (plaintext, recipients) {
+  var ephemeral = keypair()
+  var nonce     = random(24)
+  var key       = random(32)
+  var key_with_length = concat([key, recipients.length])
   return concat([
     nonce,
-    onetime.publicKey,
-    box_easy(msg, nonce, recipient_pk, onetime.secretKey)
-  ])
-}
-```
-This would have the interesting property that the message
-could not be opened by the sender (once they have deleted
-`onetime.secretKey`)
-
-This doesn't seem very useful for a database.
-
-## multiple recipients
-
-maybe, a way to generalize this would be to have multiple
-recipients?
-
-``` js
-
-function multibox (msg, nonce, recipients, sender_sk) {
-
-  var key = random(32)
-
-  return concat([
-    nonce, //24 bytes
-           //1 byte
-    new Buffer([recipients.length & 255]), //MAX 1 byte!
-            //recipients.length * 16+32
-    recipients.map(function (r_pk) {
-      return box(key, nonce, r_pk, sender_sk)
+    ephemeral.publicKey,
+    concat(recipients.map(function (publicKey) {
+      return secretbox(
+        key_with_length,
+        nonce,
+        scalarmult(publicKey, ephemeral.secretKey)
+      )
     }),
-    //msg.length + 16
-    secretbox_easy(msg, nonce, key)
+    secretbox(plaintext, nonce, key)
   ])
 }
 ```
 
-So, to use this model, you would normally make the first recipient
-your self. This would support messages to N recipients,
-and also support one way messages, or messages to yourself.
+## decrypt
 
-To decrypt, you would take `scalarmult(your_sk, sender_pk)`
-and then use that to unbox recipients until you get a valid
-mac. This could be pretty fast, because there would be only one
-curve op, and then the rest is symmetric crypto.
-
-
-## a more private multibox
-
-The properties might get a bit cleaner
+private-box takes the nonce and ephemeral public key,
+multiplies that with your secret key, then tests each possible
+recipient slot until it either decrypts a key or runs out of slots.
+If it runs out of slots, the message was not addressed to you,
+so `undefined` is returned. Else, the message is found and the body
+is decrypted.
 
 ``` js
+function decrypt (cyphertext, secretKey) {
+  var next = reader(cyphertext) //reader returns a function that 
+  var nonce = next(24)
+  var publicKey = next(32)
+  var sharedKey = salarmult(publicKey, secretKey)
 
-function multibox2 (msg, nonce, recipients) {
-
-  var key = random(32)
-  //MAX 16 recipients
-  var _key = concat([new Buffer([(recipients.length-1) && 15]), key)
-  var onetime = box_keypair()
-
-  return concat([
-    nonce, //24 bytes
-    onetime.publicKey, //32 bytes
-            //recipients.length * 16+33
-    recipients.map(function (r_pk) {
-      return box(_key, nonce, r_pk, onetime.secretKey)
-    }),
-    //msg.length + 16
-    secretbox_easy(msg, nonce, key)
-  ])
-}
-```
-
-An interesting property of this is that the recipient
-identities are forward secure (though, since I am assuming
-that the sender encrypts this message back to themself,
-whoever has their private key can read the message, and
-those id's are likely written in the message)
-
-Note, here that the recipient length field is encrypted to each
-recipient! If the number of recipients is not hidden,
-and I send a group message to a weird number, then someone
-hits "reply-all" it would suggest it was a reply.
-By hiding the number of "to" addresses, the messages will be _very private_.
-
-They will be more expensive to calculate, but since an `secretbox_open`
-attempt is actually very cheap (about 50 make 1 `scalarmult` op)
-so if you have 1 asym operation, then doing less than say, 50
-unboxes won't matter much.
-[see sodiumperf tests](https://github.com/dominictarr/sodiumperf)
-
-So this wouldn't be very much slower than any of the above
-algorithms, but it would be more private, even though it supports
-multiple recipients. Also, since the encrypted message has a one-off
-key, you could reveal the key to one message... if you needed
-to prove someone was harassing you, for example. Or, if you wanted
-to implement moderated groups, you could post a message to the moderator
-who would then reveal the key for that message to the group.
-
-Decrypt might look like this:
-
-``` js
-function multibox2_open (ctxt, sk) {
-  var nonce = ctxt.slice(0, 24)
-  var onetime_pk = ctxt.slice(24, 24+32)
-  var my_key = scalarmult(sk, onetime_pk)
-  //try a bunch of keys
-  var _key, start = 24+32, keysize = 16+1+32
-  for(var i = 0; i < 8 || !key; i++) {
-    var s = start+(keysize*i), e = s + keysize
-    _key = secretbox_easy_open(ctxt.slice(s, e), nonce, my_key)
+  for(var i = 0; i < 7; i++) {
+    var maybe_key = next(33)
+    var key_with_length = secretbox_open(maybe_key, nonce, sharedKey)
+    if(key_with_length) {//decrypted!
+      var key = key_with_length.slice(0, 32)
+      var length = key_with_length[32]
+      return secretbox_open(
+        key,
+        cyphertext.slice(56 + 33*(length+1), cyphertext.length),
+      )
+    }
   }
-  if(!key) return //message not addressed to us
-
-  var length = key[0]
-  var rest = ctxt.slice(start + keysize*length, ctxt.length)
-
-  return secretbox_easy_open(rest, nonce, key.slice(1, 33))
+  //this message was not addressed to the owner of secretKey
+  return undefined
 }
-
 ```
 
-## Groups
+## Assumptions
 
-Often we want to communicate not just with individuals, but with groups.
-Although if more actors know the secret, then it's less secure.
+Messages will be posted in public, so that the sender is likely to be known,
+but everyone can read the messages. (this makes it possible to hide the recipient,
+but probably not the sender)
 
-I can see two ways this could work,
+Resisting traffic analysis of the timing or size of messages is out of scope of this spec.
 
-### One Way Groups
+## Prior Art
 
-an author delegates a read cap (key) to selected peers,
-and then posts messages that holders of that key can read.
-The dynamic here is similar to facebook - if I add you
-as my friend then you can read my posts.
+### pgp
 
-When a peer is decrypting messages, they will try the keys
-on each message received from that author. In most cases,
-a given actor will create a handful of groups (friends, family, work,
-hobby group, etc) and any other peer is probably only a member
-of one or two of those.
+In pgp the recipient, the sender, and the subject are sent as plaintext.
+If the recipient is known then the metadata graph of who is communicating with who can be read,
+which, since it is easier to analyze than the content, is important to protect.
 
-The cost of this would be `groups_added*max_groups`,
-the max number of groups a message should be broadcast to
-should probably be very small, like 2 or 3, then if
-A adds B to 3 groups, B will only need to attempt 9 unboxings
-to read a message.
+### sodium seal
 
-### Shared Groups
+The sodium library provides a _seal_ function that generates an ephemeral keypair,
+derives a shared key to encrypt a message, and then sends the ephemeral public key and the message.
+The recipient is hidden, and it is forward secure if the sender throws out the ephemeral key.
+However, it's only possible to have one recipient.
 
-In othercases, there are groups of people who do not personally
-know each other form around a common interest. Facebook groups
-work like this.
+### minilock
 
-In this situation, it could be quite complicated to know what
-groups a given actor is in. For example, A creates group G,
-then adds B, who adds C. C then posts a message to group G.
-suppose that A sees C's message before she hears from A that
-C is now a member of G. Either A dosen't know to try G_key on
-C's message, or A just tries every group key on every message A sees.
+minilock uses a similar approach to `private-box` but does not hide the
+number of recipients. In the case of a group discussion where multiple rounds
+of messages are sent to everyone, this may enable an eavesdropper to deanonymize
+the participiants of a discussion if the sender of each message is known.
 
-As long as A is not a member of more than a few groups, this is not
-too much of a problem. But, if there are two types of groups,
-then G that could be many groups to check. Probably the simplest
-way to mitigate this is _prevent cross posting_, allow only one
-shared group per message, then only check for group keys
-on the first slot!
+## Properties
+
+This protocol was designed for use with secure-scuttlebutt,
+in this place, messages are placed in public, and the sender is known.
+(via a signature) but we can hide the recipient and the content.
+
+### recipients are hidden.
+
+An eaves dropper cannot know the recipients or their number.
+since the message is encrypted to each recipient, and then placed in public,
+to receive a message you will have to decrypt every message posted.
+This would not be scalable if you had to decrypt every message on the internet,
+but if you can restrict the number of messages you might have to decrypt,
+then it's reasonable. For example, if you frequented a forum which contained these messages,
+then it would only be a reasonable number of messages, and posting a message would only
+reveal that you where talking to some other member of that forum.
+Hiding access to such a forum is another problem, out of the current scope.
+
+### the number of recipients are hidden.
+
+If the number of recipients was not hidden, then sometimes it would be possible
+to deanonymise the number of recipients, if there was a large group discussion with
+an unusual number of recipients. Encrypting the number of recipients means that
+when you fail to decrypt a message you must attempt to decrypt same number of times
+as the maximum recipients.
+
+### a valid recipient does not know the other recipients.
+
+A valid recipient knows the number of recipients but now who they are.
+This is more a sideeffect of the design than an intentional design element.
+
+### by providing the `key` for a message a outside party could decrypt the message.
+
+When you tell someone a secret you must trust them not to reveal it.
+Anyone who knows the `key` could reveal that to some other party who could then read the message content,
+but not the recipients (unless the sender revealed the ephemeral secret key)
 
 ## License
 
 MIT
+
+
+
+
+
+
+
+
