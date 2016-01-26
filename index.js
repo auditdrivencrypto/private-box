@@ -14,6 +14,7 @@ function randombytes(n) {
 
 const MAX = 7
 
+exports.encrypt =
 exports.multibox = function (msg, recipients) {
 
   if(recipients.length > MAX)
@@ -38,6 +39,7 @@ function get_key(ctxt, my_key) {
 
 }
 
+exports.decrypt =
 exports.multibox_open = function (ctxt, sk) { //, groups...
 
   var nonce = ctxt.slice(0, 24)
