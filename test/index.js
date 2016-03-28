@@ -10,6 +10,10 @@ var keypair = sodium.crypto_box_keypair
 var alice = keypair()
 var bob   = keypair()
 
+function arrayOfSize (n) {
+  return new Array(n+1).join('0').split('')
+}
+
 tape('simple', function (t) {
 
   var msg = new Buffer('hello there!')
@@ -42,20 +46,26 @@ tape('errors when too many recipients', function (t) {
   t.end()
 })
 
-tape('encrypt/decrypt to many keys', function (t) {
+function encryptDecryptTo (n, t) {
   var msg = crypto.randomBytes(1024)
-  var keys = [1,2,3,4,5,6,7].map(function () { return keypair() })
+  var keys = arrayOfSize(n).map(function () { return keypair() })
 
-  var ctxt = c.multibox(msg, keys.map(function (e) { return e.publicKey }))
+  var ctxt = c.multibox(msg, keys.map(function (e) { return e.publicKey }), n)
 
   // a recipient key may open the message.
   keys.forEach(function (keys) {
-    t.deepEqual(c.multibox_open(ctxt, keys.secretKey), msg)
+    t.deepEqual(c.multibox_open(ctxt, keys.secretKey, n), msg)
   })
 
   t.equal(c.multibox_open(ctxt, keypair().secretKey), undefined)
 
   t.end()
+}
+
+tape('with no custom max set, encrypt/decrypt to 7 keys', function (t) {
+  encryptDecryptTo(7, t)
 })
 
-
+tape('can encrypt/decrypt up to 255 recipients after setting a custom max', function (t) {
+  encryptDecryptTo(255, t)
+})

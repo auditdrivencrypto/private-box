@@ -12,19 +12,27 @@ function randombytes(n) {
   return crypto.randomBytes(n)
 }
 
-const MAX = 7
+const DEFAULT_MAX = 7
+
+function maxrecipients (m) {
+  if (m)
+    return m
+  return DEFAULT_MAX
+}
 
 exports.encrypt =
-exports.multibox = function (msg, recipients) {
+exports.multibox = function (msg, recipients, max) {
 
-  if(recipients.length > MAX)
-    throw new Error('max recipients is:'+MAX+' found:'+recipients.length)
+  max = maxrecipients(max)
+
+  if(recipients.length > max)
+    throw new Error('max recipients is:'+max+' found:'+recipients.length)
 
   var nonce = randombytes(24)
   var key = randombytes(32)
   var onetime = keypair()
 
-  var _key = concat([new Buffer([recipients.length & MAX]), key])
+  var _key = concat([new Buffer([recipients.length & max]), key])
   return concat([
     nonce,
     onetime.publicKey,
@@ -40,13 +48,15 @@ function get_key(ctxt, my_key) {
 }
 
 exports.decrypt =
-exports.multibox_open = function (ctxt, sk) { //, groups...
+exports.multibox_open = function (ctxt, sk, max) { //, groups...
+
+  max = maxrecipients(max)
 
   var nonce = ctxt.slice(0, 24)
   var onetime_pk = ctxt.slice(24, 24+32)
   var my_key = scalarmult(sk, onetime_pk)
   var _key, key, length, start = 24+32, size = 32+1+16
-  for(var i = 0; i <= MAX; i++) {
+  for(var i = 0; i <= max; i++) {
     var s = start+size*i
     if(s + size > (ctxt.length - 16)) continue
     _key = secretbox_open(ctxt.slice(s, s + size), nonce, my_key)
