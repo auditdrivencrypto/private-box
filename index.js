@@ -14,16 +14,10 @@ function randombytes(n) {
 
 const DEFAULT_MAX = 7
 
-function maxrecipients (m) {
-  if (m)
-    return m
-  return DEFAULT_MAX
-}
-
 exports.encrypt =
 exports.multibox = function (msg, recipients, max) {
 
-  max = maxrecipients(max)
+  max = max || DEFAULT_MAX
 
   if(recipients.length > max)
     throw new Error('max recipients is:'+max+' found:'+recipients.length)
@@ -50,7 +44,7 @@ function get_key(ctxt, my_key) {
 exports.decrypt =
 exports.multibox_open = function (ctxt, sk, max) { //, groups...
 
-  max = maxrecipients(max)
+  max = max || DEFAULT_MAX
 
   var nonce = ctxt.slice(0, 24)
   var onetime_pk = ctxt.slice(24, 24+32)
