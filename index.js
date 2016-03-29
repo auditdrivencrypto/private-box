@@ -12,12 +12,20 @@ function randombytes(n) {
   return crypto.randomBytes(n)
 }
 
+function setMax (m) {
+  m = m || DEFAULT_MAX
+  if (m < 1 || m > 255)
+    throw new Error('max recipients must be between 0 and 255.')
+  return m
+}
+
+
 const DEFAULT_MAX = 7
 
 exports.encrypt =
 exports.multibox = function (msg, recipients, max) {
 
-  max = max || DEFAULT_MAX
+  max = setMax(max)
 
   if(recipients.length > max)
     throw new Error('max recipients is:'+max+' found:'+recipients.length)
@@ -44,7 +52,7 @@ function get_key(ctxt, my_key) {
 exports.decrypt =
 exports.multibox_open = function (ctxt, sk, max) { //, groups...
 
-  max = max || DEFAULT_MAX
+  max = setMax(max)
 
   var nonce = ctxt.slice(0, 24)
   var onetime_pk = ctxt.slice(24, 24+32)

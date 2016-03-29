@@ -58,14 +58,31 @@ function encryptDecryptTo (n, t) {
   })
 
   t.equal(c.multibox_open(ctxt, keypair().secretKey), undefined)
-
-  t.end()
 }
 
 tape('with no custom max set, encrypt/decrypt to 7 keys', function (t) {
   encryptDecryptTo(7, t)
+  t.end()
 })
 
 tape('can encrypt/decrypt up to 255 recipients after setting a custom max', function (t) {
   encryptDecryptTo(255, t)
+  t.end()
+})
+
+
+tape('errors when max is more than 255 or less than 1', function (t) {
+  var msg = new Buffer('hello there!')
+  var ctxt = c.multibox(msg, [alice.publicKey, bob.publicKey])
+  var pk = alice.publicKey
+  var sk = alice.secretKey
+  t.throws(function () {
+      c.multibox(msg, [
+        pk,pk,pk,pk,
+      ], -1)
+  })
+  t.throws(function () {
+      c.multibox.open(ctxt, sk, 256)
+  })
+  t.end()
 })
