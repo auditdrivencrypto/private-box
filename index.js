@@ -1,6 +1,5 @@
 
 var sodium = require('chloride')
-var crypto = require('crypto')
 var scalarmult = sodium.crypto_scalarmult
 var box  = sodium.crypto_box_easy
 var secretbox = sodium.crypto_secretbox_easy
@@ -9,7 +8,9 @@ var keypair = sodium.crypto_box_keypair
 var concat = Buffer.concat
 
 function randombytes(n) {
-  return crypto.randomBytes(n)
+  var b = new Buffer(n)
+  sodium.randombytes(b)
+  return b
 }
 
 function setMax (m) {
@@ -72,3 +73,4 @@ exports.multibox_open = function (ctxt, sk, max) { //, groups...
   if(!key) return
   return secretbox_open(ctxt.slice(start+length*size), nonce, key)
 }
+
