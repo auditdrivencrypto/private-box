@@ -135,6 +135,10 @@ and then use that to unbox recipients until you get a valid
 mac. This could be pretty fast, because there would be only one
 curve op, and then the rest is symmetric crypto.
 
+### time complexity
+
+failed decrypt: recipients.length
+successful decrypt: recipients.length/2
 
 ## a more private multibox
 
