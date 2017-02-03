@@ -46,6 +46,25 @@ tape('errors when too many recipients', function (t) {
   t.end()
 })
 
+tape('errors when zero recipients', function (t) {
+  var msg = new Buffer('hello there!')
+  var pk = alice.publicKey
+  t.throws(function () {
+      c.multibox(msg, [])
+  })
+  t.end()
+})
+
+tape('does not error if decryption attemps with a greater number of attempts than the ciphertext', function (t) {
+  var msg = new Buffer('hello there!')
+  var pk = alice.publicKey
+  var ctxt =  c.multibox(msg, [pk])
+  t.notOk(c.multibox_open(ctxt, bob.secretKey, 100))
+  t.end()
+})
+
+
+
 function encryptDecryptTo (n, t) {
   var msg = crypto.randomBytes(1024)
   var keys = arrayOfSize(n).map(function () { return keypair() })
@@ -106,5 +125,4 @@ tape('encrypt to group (symmetric) keys', function (t) {
 
   t.end()
 })
-
 
