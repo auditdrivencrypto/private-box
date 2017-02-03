@@ -70,7 +70,6 @@ tape('can encrypt/decrypt up to 255 recipients after setting a custom max', func
   t.end()
 })
 
-
 tape('errors when max is more than 255 or less than 1', function (t) {
   var msg = new Buffer('hello there!')
   var ctxt = c.multibox(msg, [alice.publicKey, bob.publicKey])
@@ -86,3 +85,26 @@ tape('errors when max is more than 255 or less than 1', function (t) {
   })
   t.end()
 })
+
+
+tape('encrypt to group (symmetric) keys', function (t) {
+  var ptxt = crypto.randomBytes(1024)
+//  var key = sodium.scalarmult(alice.secretKey, bob.publicKey)
+  var key1 = crypto.randomBytes(32)
+  var key2 = crypto.randomBytes(32)
+  var key3 = crypto.randomBytes(32)
+
+  var ctxt = c.multibox(ptxt, [alice.publicKey, bob.publicKey], [key1, key2, key3], 7)
+//  console.log([key1, key2, key3])
+  t.notDeepEqual(ctxt, ptxt)
+
+  t.deepEqual(c.multibox_symmetric_open(ctxt, key1, 7), ptxt)
+  t.deepEqual(c.multibox_symmetric_open(ctxt, key2, 7), ptxt)
+  t.deepEqual(c.multibox_symmetric_open(ctxt, key3, 7), ptxt)
+  t.deepEqual(c.multibox_open(ctxt, alice.secretKey, 7), ptxt)
+  t.deepEqual(c.multibox_open(ctxt, bob.secretKey, 7), ptxt)
+
+  t.end()
+})
+
+
