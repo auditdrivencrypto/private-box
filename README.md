@@ -5,22 +5,34 @@ A format for encrypting a private message to many parties.
 
 ## API
 
-### encrypt (plaintext Buffer, recipients Array<curve25519_pk>)
+### encrypt (plaintext Buffer, recipients Array<curve25519_pk>, group_keys<Buffer<32>>?, max?)
 
 Takes a `plaintext` Buffer of the message you want to encrypt,
 and an array of recipient public keys.
 Returns a message that is encrypted to all recipients
 and openable by them with `PrivateBox.decrypt`.
-The `recipients` must be between 1 and 7 items long.
+`group_keys` is an optional array of symmetric keys, which can also open the message.
+If the number of keys in total is greater than `max` an error is thrown.
+by default, `max` is 7.
+
+note, the `group_keys` are used first, then the asymmetric keys.
 
 The encrypted length will be `56 + (recipients.length * 33) + plaintext.length` bytes long,
 between 89 and 287 bytes longer than the plaintext.
 
-### decrypt (cyphertext Buffer, secretKey curve25519_sk)
+### decrypt (cyphertext Buffer, secretKey curve25519_sk, max)
 
 Attempt to decrypt a private-box message, using your secret key.
-If you where an intended recipient then the plaintext will be returned.
+If you are an intended recipient then the plaintext will be returned.
 If it was not for you, then `undefined` will be returned.
+
+### decrypt_symmetric (cyphertext Buffer, secret Buffer, max)
+
+Attempt to decrypt a cyphertext with a symmetric key, up to `max` times.
+If the symmetric key was an intended recipient then the plaintext will be returned.
+If the message was not decrypted, `undefined` is returned.
+`max` may be less than the value of `max` used when encrypting,
+which just means not all the positions will be tried.
 
 ## Protocol
 
@@ -158,6 +170,9 @@ but not the recipients (unless the sender revealed the ephemeral secret key).
 ## License
 
 MIT
+
+
+
 
 
 
