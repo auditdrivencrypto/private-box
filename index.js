@@ -38,6 +38,8 @@ exports.multibox = function (msg, recipients, symkeys, max) {
 
   if(recipients.length + symkeys.length > max)
     throw new Error('max recipients is:'+max+' found:'+recipients.length)
+  else if(recipients.length + symkeys.length == 0)
+    throw new Error('need at least 1 recipent/key')
 
   return exports.multibox_symmetric(msg, nonce, onetime.publicKey, keys, max)
 
@@ -72,6 +74,7 @@ exports.multibox_open = function (ctxt, sk, max) { //, groups...
   return exports.multibox_symmetric_open(ctxt, my_key, max)
 }
 
+exports.decrypt_symmetric =
 exports.multibox_symmetric_open = function (ctxt, my_key, max) { //, groups...
   max = setMax(max)
 
