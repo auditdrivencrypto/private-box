@@ -24,40 +24,58 @@ function setMax (m) {
 const DEFAULT_MAX = 7
 
 exports.encrypt =
-exports.multibox = function (msg, recipients, max) {
+exports.multibox = function (msg, recipients, symkeys, max) {
+
+  if(!Array.isArray(symkeys))
+    max = symkeys, symkeys = []
+
+  max = setMax(max)
+  var nonce = randombytes(24)
+  var onetime = keypair()
+  var keys = symkeys.concat(recipients.map(function (r_pk, i) {
+    return scalarmult(onetime.secretKey, r_pk)
+  }))
+
+  if(recipients.length + symkeys.length > max)
+    throw new Error('max recipients is:'+max+' found:'+recipients.length)
+
+  return exports.multibox_symmetric(msg, nonce, onetime.publicKey, keys, max)
+
+}
+
+exports.multibox_symmetric = function (msg, nonce, pubkey, keys, max) {
 
   max = setMax(max)
 
-  if(recipients.length > max)
+  if(keys.length > max)
     throw new Error('max recipients is:'+max+' found:'+recipients.length)
 
-  var nonce = randombytes(24)
   var key = randombytes(32)
-  var onetime = keypair()
 
-  var _key = concat([new Buffer([recipients.length & max]), key])
+  var _key = concat([new Buffer([keys.length]), key])
+
   return concat([
     nonce,
-    onetime.publicKey,
-    concat(recipients.map(function (r_pk, i) {
-      return secretbox(_key, nonce, scalarmult(onetime.secretKey, r_pk))
+    pubkey,
+    concat(keys.map(function (r_key, i) {
+      return secretbox(_key, nonce, r_key)
     })),
     secretbox(msg, nonce, key)
   ])
-}
-
-function get_key(ctxt, my_key) {
 
 }
 
 exports.decrypt =
 exports.multibox_open = function (ctxt, sk, max) { //, groups...
+  var onetime_pk = ctxt.slice(24, 24+32)
+  var my_key = scalarmult(sk, onetime_pk)
+  return exports.multibox_symmetric_open(ctxt, my_key, max)
+}
 
+exports.multibox_symmetric_open = function (ctxt, my_key, max) { //, groups...
   max = setMax(max)
 
   var nonce = ctxt.slice(0, 24)
-  var onetime_pk = ctxt.slice(24, 24+32)
-  var my_key = scalarmult(sk, onetime_pk)
   var _key, key, length, start = 24+32, size = 32+1+16
   for(var i = 0; i <= max; i++) {
     var s = start+size*i
