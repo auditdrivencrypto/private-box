@@ -67,6 +67,8 @@ exports.multibox_symmetric = function (msg, nonce, pubkey, keys, max) {
 
 }
 
+
+
 exports.decrypt =
 exports.multibox_open = function (ctxt, sk, max) { //, groups...
   var onetime_pk = ctxt.slice(24, 24+32)
@@ -74,8 +76,13 @@ exports.multibox_open = function (ctxt, sk, max) { //, groups...
   return exports.multibox_symmetric_open(ctxt, my_key, max)
 }
 
-exports.decrypt_symmetric =
-exports.multibox_symmetric_open = function (ctxt, my_key, max) { //, groups...
+exports.decrypt_open_key = function (ctxt, sk, max) {
+  var onetime_pk = ctxt.slice(24, 24+32)
+  var my_key = scalarmult(sk, onetime_pk)
+  return exports.decrypt_symmetric_open_key(ctxt, my_key, max)
+}
+
+exports.decrypt_symmetric_open_key = function (ctxt, my_key, max) {
   max = setMax(max)
 
   var nonce = ctxt.slice(0, 24)
@@ -84,14 +91,21 @@ exports.multibox_symmetric_open = function (ctxt, my_key, max) { //, groups...
     var s = start+size*i
     if(s + size > (ctxt.length - 16)) continue
     _key = secretbox_open(ctxt.slice(s, s + size), nonce, my_key)
-    if(_key) {
-      length = _key[0]
-      key = _key.slice(1)
-      continue
-    }
+    if(_key) return _key
   }
+}
 
-  if(!key) return
+exports.decrypt_open_direct = function (ctxt, _key) {
+  if(!_key) return
+  var nonce = ctxt.slice(0, 24)
+  var length = _key[0]
+  var key = _key.slice(1)
+  var start = 24+32, size = 32+1+16
   return secretbox_open(ctxt.slice(start+length*size), nonce, key)
+}
+
+exports.decrypt_symmetric =
+exports.multibox_symmetric_open = function (ctxt, my_key, max) { //, groups...
+  return exports.decrypt_open_direct(ctxt, exports.decrypt_symmetric_open_key(ctxt, my_key, max))
 }
 
