@@ -66,7 +66,7 @@ exports.multibox_open = function (ctxt, sk, max) { //, groups...
     if(_key) {
       length = _key[0]
       key = _key.slice(1)
-      continue
+      break
     }
   }
 
