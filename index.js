@@ -1,4 +1,3 @@
-
 var sodium = require('chloride')
 var scalarmult = sodium.crypto_scalarmult
 var box  = sodium.crypto_box_easy
@@ -83,25 +82,5 @@ exports.multibox_open = function (ctxt, sk, max) { //, groups...
   var _key = exports.multibox_open_key(ctxt, sk, max)
   if(_key) return exports.multibox_open_body(ctxt, _key)
 }
-//  max = setMax(max)
-//
-//  var nonce = ctxt.slice(0, 24)
-//  var onetime_pk = ctxt.slice(24, 24+32)
-//  var my_key = scalarmult(sk, onetime_pk)
-//  var _key, key, length, start = 24+32, size = 32+1+16
-//  for(var i = 0; i <= max; i++) {
-//    var s = start+size*i
-//    if(s + size > (ctxt.length - 16)) continue
-//    _key = secretbox_open(ctxt.slice(s, s + size), nonce, my_key)
-//    if(_key) {
-//      length = _key[0]
-//      key = _key.slice(1)
-//      continue
-//    }
-//  }
-//
-//  if(!key) return
-//  return secretbox_open(ctxt.slice(start+length*size), nonce, key)
-//}
 
 
