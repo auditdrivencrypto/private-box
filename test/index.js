@@ -3,7 +3,7 @@ var tape = require('tape')
 var crypto = require('crypto')
 
 var c = require('../')
-var sodium = require('chloride/build/Release/sodium')
+var sodium = require('chloride')
 
 var keypair = sodium.crypto_box_keypair
 
