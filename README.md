@@ -33,7 +33,7 @@ with its secret to produce ephemeral shared keys (`shared_keys[1..n]`).
 Then, private-box concatenates `body_key` with the number of recipients,
 encrypts that to each shared key, and concatenates the encrypted body.
 
-```
+``` js
 function encrypt (plaintext, recipients) {
   var ephemeral = keypair()
   var nonce     = random(24)
