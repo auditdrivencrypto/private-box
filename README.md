@@ -3,6 +3,10 @@
 A format for encrypting a private message to many parties.
 `private-box` is designed according to the [auditdrivencrypto design process](https://github.com/crypto-browserify/crypto-browserify/issues/128)
 
+## Implementations
+* javascript/node.js this repo.
+* C# [Cinorid/PrivateBox](https://github.com/Cinorid/PrivateBox)
+
 ## API
 
 ### encrypt (plaintext Buffer, recipients Array<curve25519_pk>)
@@ -33,7 +37,7 @@ with its secret to produce ephemeral shared keys (`shared_keys[1..n]`).
 Then, private-box concatenates `body_key` with the number of recipients,
 encrypts that to each shared key, and concatenates the encrypted body.
 
-```
+``` js
 function encrypt (plaintext, recipients) {
   var ephemeral = keypair()
   var nonce     = random(24)
